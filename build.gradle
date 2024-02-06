@@ -120,7 +120,7 @@ java {
     }
 
     withSourcesJar()
-    withJavadocJar()
+    //withJavadocJar()
 
 }
 
@@ -146,7 +146,7 @@ publishing {
             artifactId = 'redischat'
             version = "$version"
             artifact shadowJar
-            artifact javadocJar
+            //artifact javadocJar
             artifact sourcesJar
         }
     }
