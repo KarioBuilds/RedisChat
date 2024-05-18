@@ -47,6 +47,13 @@ public abstract class SQLDataManager implements DataManager {
                 serializedMail  text        not null
             );
             """, """
+            create table if not exists read_mails
+            (
+                player_name     varchar(16) not null,
+                mail_id         double      not null,
+                primary key (player_name, mail_id)
+            );
+            """, """
             create table if not exists player_data
             (
                 player_name     varchar(16)     not null primary key,
@@ -94,6 +101,12 @@ public abstract class SQLDataManager implements DataManager {
                 placeholders   TEXT        not null,
                 primary key (player_name)
             );
+            """, """
+            create table if not exists whitelist_enabled_players
+            (
+                player_name    varchar(16) not null,
+                primary key (player_name)
+            );
             """
         };
     }
@@ -128,10 +141,18 @@ public abstract class SQLDataManager implements DataManager {
                     final Channel ch = Channel.deserialize(messageString);
                     plugin.getChannelManager().updateChannel(ch.getName(), ch);
                 }
-            } else if (subchannel.equals(DataKey.MUTED_UPDATE.toString())) {
+            } else if (subchannel.equals(DataKey.MAIL_UPDATE_CHANNEL.toString())) {
+                plugin.getMailGUIManager().receiveMailUpdate(messageString);
+            }else if (subchannel.equals(DataKey.MUTED_UPDATE.toString())) {
                 plugin.getChannelManager().getMuteManager().serializedUpdate(messageString);
             } else if (subchannel.equals(DataKey.PLAYER_PLACEHOLDERS_UPDATE.toString())) {
                 plugin.getPlaceholderManager().updatePlayerPlaceholders(messageString);
+            } else if (subchannel.equals(DataKey.WHITELIST_ENABLED_UPDATE.toString())) {
+                if (messageString.startsWith("D§")) {
+                    plugin.getChannelManager().getMuteManager().whitelistEnabledUpdate(messageString.substring(2), false);
+                } else {
+                    plugin.getChannelManager().getMuteManager().whitelistEnabledUpdate(messageString, true);
+                }
             }
 
         });
@@ -413,7 +434,10 @@ public abstract class SQLDataManager implements DataManager {
             try (PreparedStatement statement = connection.prepareStatement("""
                     UPDATE player_data SET inv_serialized = NULL, item_serialized = NULL, ec_serialized = NULL;
                     """)) {
-                statement.executeUpdate();
+
+                if (statement.executeUpdate() == 0) {
+                    throw new SQLException("Failed to clear inv share cache: " + statement);
+                }
             }
         } catch (SQLException e) {
             errWarn("Failed to clear inv share cache", e);
@@ -497,17 +521,21 @@ public abstract class SQLDataManager implements DataManager {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection connection = getConnection()) {
                 try (PreparedStatement statement = connection.prepareStatement("""
-                        select id, serializedMail from mails
+                        select id, serializedMail, player_name from mails
+                        left join read_mails on mails.id = read_mails.mail_id and read_mails.player_name = ?
                         where recipient = ?;""")) {
 
                     statement.setString(1, playerName);
+                    statement.setString(2, playerName);
 
                     final ResultSet resultSet = statement.executeQuery();
-                    List<Mail> mails = new ArrayList<>();
+                    final List<Mail> mails = new ArrayList<>();
                     while (resultSet.next()) {
-                        mails.add(new Mail(
+                        Mail mail = new Mail(plugin.getMailGUIManager(),
                                 resultSet.getDouble("id"),
-                                resultSet.getString("serializedMail")));
+                                resultSet.getString("serializedMail"));
+                        mail.setRead(resultSet.getString("player_name") != null);
+                        mails.add(mail);
                     }
                     return mails;
                 }
@@ -536,9 +564,11 @@ public abstract class SQLDataManager implements DataManager {
                     statement.setDouble(4, mail.getId() + 0.001);
                     statement.setString(5, mail.getSender());
                     statement.setString(6, mail.serialize());
+
                     if (statement.executeUpdate() == 0) {
                         throw new SQLException("Failed to insert serialized private mail into database: " + statement);
                     }
+                    sendMailUpdate(mail);
                     return true;
                 }
             } catch (SQLException e) {
@@ -561,9 +591,11 @@ public abstract class SQLDataManager implements DataManager {
                     statement.setDouble(1, mail.getId());
                     statement.setString(2, mail.getReceiver());
                     statement.setString(3, mail.serialize());
+
                     if (statement.executeUpdate() == 0) {
                         throw new SQLException("Failed to insert serialized public mail into database: " + statement);
                     }
+                    sendMailUpdate(mail);
                     return true;
                 }
             } catch (SQLException e) {
@@ -574,19 +606,23 @@ public abstract class SQLDataManager implements DataManager {
     }
 
     @Override
-    public CompletionStage<List<Mail>> getPublicMails() {
+    public CompletableFuture<List<Mail>> getPublicMails(@NotNull String playerName) {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection connection = getConnection()) {
                 try (PreparedStatement statement = connection.prepareStatement("""
-                        select id, serializedMail from mails
+                        select id, serializedMail, player_name
+                        from mails 
+                        left join read_mails on mails.id = read_mails.mail_id and read_mails.player_name = ?
                         where recipient = '-Public';""")) {
 
                     final ResultSet resultSet = statement.executeQuery();
-                    List<Mail> mails = new ArrayList<>();
+                    final List<Mail> mails = new ArrayList<>();
                     while (resultSet.next()) {
-                        mails.add(new Mail(
+                        Mail mail = new Mail(plugin.getMailGUIManager(),
                                 resultSet.getDouble("id"),
-                                resultSet.getString("serializedMail")));
+                                resultSet.getString("serializedMail"));
+                        mail.setRead(resultSet.getString("player_name") != null);
+                        mails.add(mail);
                     }
                     return mails;
                 }
@@ -594,6 +630,49 @@ public abstract class SQLDataManager implements DataManager {
                 errWarn("Failed to fetch serialized public mails from the database", e);
             }
             return List.of();
+        }, plugin.getExecutorService());
+    }
+
+    @Override
+    public void setMailRead(@NotNull String playerName, @NotNull Mail mail) {
+        CompletableFuture.runAsync(() -> {
+            try (Connection connection = getConnection()) {
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        INSERT IGNORE INTO read_mails
+                            (`player_name`, `mail_id`)
+                        VALUES
+                            (?,?);
+                        """)) {
+
+                    statement.setString(1, playerName);
+                    statement.setDouble(2, mail.getId());
+                    if (statement.executeUpdate() == 0) {
+                        throw new SQLException("Failed to insert read mail into database: " + statement);
+                    }
+                }
+            } catch (SQLException e) {
+                errWarn("Failed to insert read mail into database", e);
+            }
+        }, plugin.getExecutorService());
+    }
+    @Override
+    public void deleteMail(@NotNull Mail mail) {
+        CompletableFuture.runAsync(() -> {
+            try (Connection connection = getConnection()) {
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        DELETE mails,read_mails 
+                        FROM mails INNER JOIN read_mails 
+                        ON mails.id = read_mails.mail_id and mails.id = ?;
+                        """)) {
+
+                    statement.setDouble(1, mail.getId());
+                    if (statement.executeUpdate() == 0) {
+                        throw new SQLException("Failed to delete mail from database: " + statement);
+                    }
+                }
+            } catch (SQLException e) {
+                errWarn("Failed to delete mail from database", e);
+            }
         }, plugin.getExecutorService());
     }
 
@@ -668,6 +747,16 @@ public abstract class SQLDataManager implements DataManager {
         sendPluginMessage(out.toByteArray());
     }
 
+    private void sendMailUpdate(@NotNull Mail mail) {
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("Forward");
+        out.writeUTF("ALL");
+        out.writeUTF(DataKey.MAIL_UPDATE_CHANNEL.toString());
+        out.writeUTF(mail.serialize());
+
+        sendPluginMessage(out.toByteArray());
+    }
+
     @Override
     public void unregisterChannel(@NotNull String channelName) {
         CompletableFuture.supplyAsync(() -> {
@@ -715,6 +804,55 @@ public abstract class SQLDataManager implements DataManager {
             return "public";
         }, plugin.getExecutorService());
     }
+
+    @Override
+    public CompletionStage<Set<String>> getWhitelistEnabledPlayers() {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection connection = getConnection()) {
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        select player_name from whitelist_enabled_players;""")) {
+
+                    statement.setBoolean(1, true);
+                    final ResultSet resultSet = statement.executeQuery();
+                    final Set<String> players = new HashSet<>();
+                    while (resultSet.next()) {
+                        players.add(resultSet.getString("player_name"));
+                    }
+                    return players;
+                }
+            } catch (SQLException e) {
+                errWarn("Failed to fetch whitelist enabled players from database", e);
+            }
+            return Set.of();
+        }, plugin.getExecutorService());
+    }
+
+    @Override
+    public void setWhitelistEnabledPlayer(@NotNull String playerName, boolean enabled) {
+        CompletableFuture.runAsync(() -> {
+            try (Connection connection = getConnection()) {
+                try (PreparedStatement statement = connection.prepareStatement(enabled ?
+                        "INSERT INTO whitelist_enabled_players (`player_name`) VALUES (?)" :
+                        "DELETE FROM whitelist_enabled_players WHERE player_name = ?;"
+                )) {
+                    statement.setString(1, playerName);
+
+                    if (statement.executeUpdate() == 0) {
+                        throw new SQLException("Failed to update whitelist enabled player to database: " + statement);
+                    }
+                    final ByteArrayDataOutput out = ByteStreams.newDataOutput();
+                    out.writeUTF("Forward");
+                    out.writeUTF("ALL");
+                    out.writeUTF(DataKey.WHITELIST_ENABLED_UPDATE.toString());
+                    out.writeUTF(enabled ? playerName : "D§" + playerName);
+                    sendPluginMessage(out.toByteArray());
+                }
+            } catch (SQLException e) {
+                errWarn("Failed to update whitelist enabled player to database", e);
+            }
+        });
+    }
+
 
     @Override
     public CompletionStage<List<PlayerChannel>> getPlayerChannelStatuses(@NotNull String playerName, Map<String, Channel> registeredChannels) {

@@ -187,6 +187,8 @@ public final class Config implements ConfigValidator {
             "(?i)卍",
             "(?i)♿"
     );
+    @Comment({"Whether to hide the bad word or to not send the message at all"})
+    public boolean doNotSendCensoredMessage = false;
     @Comment({"What to replace the blacklisted words with"})
     public String blacklistReplacement = "<obf>*****</obf>";
     @Comment({"Private message notification sound",
@@ -242,6 +244,8 @@ public final class Config implements ConfigValidator {
     public String mailTimestampFormat = "dd/MM/yyyy HH:mm";
     @Comment("The timezone of the timestamp in mails (by default is Central European Time)")
     public String mailTimestampZone = "UTC+1";
+    @Comment("The timeout of the mail editor in seconds")
+    public int mailEditorTimeout = 300;
     @Comment("Those commands will be disabled")
     public List<String> disabledCommands = List.of();
     @Comment("The [inv], [item] and [ec] placeholders will be considered as minimessage tags")

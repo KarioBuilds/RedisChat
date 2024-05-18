@@ -23,7 +23,7 @@ import dev.unnm3d.redischat.discord.SpicordHook;
 import dev.unnm3d.redischat.integrations.OraxenTagResolver;
 import dev.unnm3d.redischat.integrations.PremiumVanishIntegration;
 import dev.unnm3d.redischat.mail.MailCommand;
-import dev.unnm3d.redischat.mail.MailManager;
+import dev.unnm3d.redischat.mail.MailGUIManager;
 import dev.unnm3d.redischat.moderation.MuteCommand;
 import dev.unnm3d.redischat.moderation.SpyChatCommand;
 import dev.unnm3d.redischat.moderation.SpyManager;
@@ -87,10 +87,15 @@ public final class RedisChat extends JavaPlugin {
     private IDiscordHook discordHook;
     @Getter
     private ExecutorService executorService;
+    @Getter
+    private MailGUIManager mailGUIManager;
 
     @Override
     public void onLoad() {
-        CommandAPI.onLoad(new CommandAPIBukkitConfig(this).silentLogs(true).verboseOutput(false));
+        CommandAPI.onLoad(new CommandAPIBukkitConfig(this)
+                .usePluginNamespace()
+                .silentLogs(true)
+                .verboseOutput(false));
     }
 
 
@@ -138,7 +143,6 @@ public final class RedisChat extends JavaPlugin {
             getLogger().warning("Invalid listening priority, using NORMAL");
             listenerWithPriority = ChatListenerWithPriority.NORMAL;
         }
-
         getServer().getPluginManager().registerEvents(listenerWithPriority.getListener(), this);
 
         if (config.enableStaffChat)
@@ -159,7 +163,8 @@ public final class RedisChat extends JavaPlugin {
 
         //Mail section
         if (config.enableMails) {
-            loadCommandAPICommand(new MailCommand(new MailManager(this), this).getCommand());
+            this.mailGUIManager = new MailGUIManager(this);
+            loadCommandAPICommand(new MailCommand(this.mailGUIManager).getCommand());
         }
 
 
@@ -195,6 +200,7 @@ public final class RedisChat extends JavaPlugin {
         loadCommand("spychat", new SpyChatCommand(this), null);
         IgnoreCommand ignoreCommand = new IgnoreCommand(this);
         loadCommand("ignore", ignoreCommand, ignoreCommand);
+        loadCommandAPICommand(new IgnoreWhitelistCommand(this).getCommand());
         loadCommand("clearchat", new ClearChatCommand(this), null);
 
         //RedisChat Placeholders
@@ -296,7 +302,7 @@ public final class RedisChat extends JavaPlugin {
         if (this.dataManager != null)
             this.dataManager.clearInvShareCache();
 
-        registeredCommands.forEach(CommandAPI::unregister);
+        registeredCommands.forEach(command -> CommandAPI.unregister(command, true));
         CommandAPI.onDisable();
 
         if (this.playerListManager != null)

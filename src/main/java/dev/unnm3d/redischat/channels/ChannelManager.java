@@ -7,6 +7,7 @@ import dev.unnm3d.redischat.api.AsyncRedisChatMessageEvent;
 import dev.unnm3d.redischat.api.RedisChatAPI;
 import dev.unnm3d.redischat.api.VanishIntegration;
 import dev.unnm3d.redischat.chat.*;
+import dev.unnm3d.redischat.mail.MailGUIManager;
 import dev.unnm3d.redischat.moderation.MuteManager;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
@@ -20,10 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelManager extends RedisChatAPI {
@@ -60,6 +58,11 @@ public class ChannelManager extends RedisChatAPI {
     @Override
     public ComponentProvider getComponentProvider() {
         return plugin.getComponentProvider();
+    }
+
+    @Override
+    public Optional<MailGUIManager> getMailManager() {
+        return Optional.ofNullable(plugin.getMailGUIManager());
     }
 
     @Override
@@ -127,6 +130,11 @@ public class ChannelManager extends RedisChatAPI {
             return;
         }
 
+        if (!player.hasPermission(Permissions.CHANNEL_PREFIX.getPermission() + channel.getName())) {
+            plugin.messages.sendMessage(player, plugin.messages.channelNoPermission.replace("%channel%", channel.getName()));
+            return;
+        }
+
         if (isRateLimited(player, channel)) return;
 
         if (plugin.config.debug) {
@@ -156,7 +164,12 @@ public class ChannelManager extends RedisChatAPI {
             message = antiCaps(player, message);
 
             //Word filter
+            final String originalMessage = message;
             message = getComponentProvider().sanitize(message);
+            if (plugin.config.doNotSendCensoredMessage && !originalMessage.equals(message)) {
+                plugin.messages.sendMessage(player, plugin.messages.messageContainsBadWords);
+                return;
+            }
         }
 
         if (plugin.config.debug) {
@@ -305,9 +318,9 @@ public class ChannelManager extends RedisChatAPI {
         }
 
         //Send to recipient or all players
-        final Collection<? extends Player> recipients =
+        final Set<Player> recipients =
                 recipient == null ?
-                        plugin.getServer().getOnlinePlayers() :
+                        new HashSet<>(plugin.getServer().getOnlinePlayers()) :
                         Collections.singleton(recipient);
 
         recipients.stream()
@@ -366,7 +379,7 @@ public class ChannelManager extends RedisChatAPI {
 
     @Override
     public void sendPrivateChat(@NotNull ChatMessageInfo chatMessageInfo) {
-        Player p = Bukkit.getPlayer(chatMessageInfo.getReceiver().getName());
+        final Player p = Bukkit.getPlayer(chatMessageInfo.getReceiver().getName());
         if (p != null)
             if (p.isOnline()) {
                 final ChatFormat chatFormat = plugin.config.getChatFormat(p);
