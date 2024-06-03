@@ -42,21 +42,16 @@ public class MailGUIManager {
      * @param title  The title of the mail
      * @param token  The token to open the web editor
      */
-    public void startEditorMode(Player sender, String target, String title, String token) {
+    public void startEditorMode(@NotNull Player sender, @NotNull String target, @NotNull String title, @NotNull String token) {
         final MailEditorEvent event = new MailEditorEvent(new Mail(this, sender.getName(), target, title),
                 MailEditorEvent.MailEditorState.STARTED);
+        plugin.getServer().getPluginManager().callEvent(event);
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            plugin.getServer().getPluginManager().callEvent(event);
+        this.editorMode.put(sender.getUniqueId(), event.getMail());
 
-            this.editorMode.put(sender.getUniqueId(), event.getMail());
-            System.out.println("Starting editor mode for " + sender.getUniqueId() + " with mail " + event.getMail().serializeWithId());
-
-            plugin.getComponentProvider().sendMessage(sender,
-                    plugin.messages.mailEditorStart
-                            .replace("%link%", plugin.getWebEditorAPI().getEditorUrl(token)));
-        });
-
+        plugin.getComponentProvider().sendMessage(sender,
+                plugin.messages.mailEditorStart
+                        .replace("%link%", plugin.getWebEditorAPI().getEditorUrl(token)));
     }
 
     /**
@@ -67,19 +62,17 @@ public class MailGUIManager {
      * @param content The content of the mail
      */
     public void stopEditorMode(@NotNull Player sender, @NotNull String content) {
+        final Mail mail = editorMode.get(sender.getUniqueId());
+        if (mail == null) {
+            plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailEditorFailed);
+            return;
+        }
+        mail.setContent(content);
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            final Mail mail = editorMode.get(sender.getUniqueId());
-            if (mail == null) {
-                plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailError);
-                return;
-            }
-            mail.setContent(content);
+        final MailEditorEvent event = new MailEditorEvent(mail, MailEditorEvent.MailEditorState.COMPLETED);
+        plugin.getServer().getPluginManager().callEvent(event);
+        editorMode.put(sender.getUniqueId(), event.getMail());
 
-            final MailEditorEvent event = new MailEditorEvent(mail, MailEditorEvent.MailEditorState.COMPLETED);
-            plugin.getServer().getPluginManager().callEvent(event);
-            editorMode.put(sender.getUniqueId(), event.getMail());
-        });
     }
 
     /**
@@ -90,7 +83,7 @@ public class MailGUIManager {
     public void previewMail(Player sender) {
         final Mail mail = editorMode.get(sender.getUniqueId());
         if (mail == null) {
-            plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailError);
+            plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailNotFound);
             return;
         }
         mail.openPreview(sender, false);
@@ -105,9 +98,8 @@ public class MailGUIManager {
      */
     public void confirmSendMail(Player sender, boolean confirm) {
         final Mail mail = editorMode.remove(sender.getUniqueId());
-        System.out.println("Removing mail " + mail + " from editor mode");
         if (mail == null) {
-            plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailError);
+            plugin.getComponentProvider().sendMessage(sender, plugin.messages.mailEditorFailed);
             return;
         }
         if (!confirm) {
@@ -144,27 +136,31 @@ public class MailGUIManager {
         return plugin.getDataManager().setPlayerPrivateMail(event.getMail());
     }
 
+    /**
+     * Receive mail update from redis
+     *
+     * @param message The message to receive
+     * @hidden This method is not meant to be used by other plugins
+     */
     public void receiveMailUpdate(String message) {
         double mailID = Double.parseDouble(message.substring(0, message.indexOf("§§")));
         final Mail receivedMail = new Mail(this, mailID, message.substring(message.indexOf("§§") + 2));
+        plugin.getServer().getPluginManager().callEvent(new MailReceivedEvent(receivedMail));
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            plugin.getServer().getPluginManager().callEvent(new MailReceivedEvent(receivedMail));
-            if (receivedMail.category == Mail.MailCategory.PUBLIC) {
-                for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
-                    plugin.messages.sendMessage(onlinePlayer, plugin.messages.mailReceived
-                            .replace("%sender%", receivedMail.getSender())
-                            .replace("%title%", receivedMail.getTitle()));
-                }
-            } else if (receivedMail.category == Mail.MailCategory.PRIVATE) {
-                final Player recipient = plugin.getServer().getPlayer(receivedMail.getReceiver());
-                if (recipient != null) {
-                    plugin.messages.sendMessage(recipient, plugin.messages.mailReceived
-                            .replace("%sender%", receivedMail.getSender())
-                            .replace("%title%", receivedMail.getTitle()));
-                }
+        if (receivedMail.getCategory() == Mail.MailCategory.PUBLIC) {
+            for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
+                plugin.messages.sendMessage(onlinePlayer, plugin.messages.mailReceived
+                        .replace("%sender%", receivedMail.getSender())
+                        .replace("%title%", receivedMail.getTitle()));
             }
-        });
+        } else if (receivedMail.getCategory() == Mail.MailCategory.PRIVATE) {
+            final Player recipient = plugin.getServer().getPlayer(receivedMail.getReceiver());
+            if (recipient != null) {
+                plugin.messages.sendMessage(recipient, plugin.messages.mailReceived
+                        .replace("%sender%", receivedMail.getSender())
+                        .replace("%title%", receivedMail.getTitle()));
+            }
+        }
     }
 
     /**
@@ -173,13 +169,17 @@ public class MailGUIManager {
      * @param mail    Mail to delete
      * @param deleter The player who deletes the mail
      */
-    public void deleteMail(@NotNull Mail mail, @NotNull Player deleter) {
+    public CompletionStage<Boolean> deleteMail(@NotNull Mail mail, @NotNull Player deleter) {
         final MailDeleteEvent event = new MailDeleteEvent(mail, deleter);
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            plugin.getServer().getPluginManager().callEvent(event);
-            if (event.isCancelled()) return;
-            plugin.getDataManager().deleteMail(mail);
-            plugin.messages.sendMessage(deleter, plugin.messages.mailDeleted.replace("%title%", mail.getTitle()));
+
+        plugin.getServer().getPluginManager().callEvent(event);
+        if (event.isCancelled()) return CompletableFuture.completedFuture(false);
+
+        return plugin.getDataManager().deleteMail(mail).thenApply(success -> {
+            if (success) {
+                plugin.messages.sendMessage(deleter, plugin.messages.mailDeleted.replace("%title%", mail.getTitle()));
+            }
+            return success;
         });
     }
 
@@ -187,15 +187,15 @@ public class MailGUIManager {
      * Change the read status of the mail
      *
      * @param mail Mail to change the read status
+     * @return CompletionStage<Boolean> if mail read status was set successfully
      */
-    public void readMail(@NotNull Mail mail, @NotNull Player player, boolean read) {
+    public CompletionStage<Boolean> readMail(@NotNull Mail mail, @NotNull Player player, boolean read) {
         //Format mail id double 3 decimal places
         mail.setRead(read);
-        plugin.getServer().getScheduler().runTask(plugin, () ->
-                plugin.getServer().getPluginManager().callEvent(new MailReadStatusChangeEvent(mail, player)));
-        plugin.getDataManager().setMailRead(player.getName(), mail);
-        if (!read)
-            plugin.messages.sendMessage(player, plugin.messages.mailUnRead.replace("%title%", mail.getTitle()));
+
+        plugin.getServer().getPluginManager().callEvent(new MailReadStatusChangeEvent(mail, player));
+
+        return plugin.getDataManager().setMailRead(player.getName(), mail);
     }
 
 
@@ -203,7 +203,7 @@ public class MailGUIManager {
      * Get all public mails with the given player read status
      *
      * @param playerName The player name to get read statuses
-     * @return CompletableFuture<List < Mail>> with all public mails
+     * @return CompletableFuture with all public mails
      */
     public CompletableFuture<List<Mail>> getPublicMails(@NotNull String playerName) {
         return plugin.getDataManager().getPublicMails(playerName);
@@ -213,7 +213,7 @@ public class MailGUIManager {
      * Get all private mails of the given player
      *
      * @param playerName The player name to get private mails
-     * @return CompletableFuture<List < Mail>> with all player private mails
+     * @return CompletableFuture with all player private mails
      */
     public CompletableFuture<List<Mail>> getPrivateMails(@NotNull String playerName) {
         return plugin.getDataManager().getPlayerPrivateMail(playerName).toCompletableFuture();
@@ -326,12 +326,14 @@ public class MailGUIManager {
                     @Override
                     public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                         event.setCancelled(true);
-                        deleteMail(mail, player);
-                        if (mail.getCategory().equals(Mail.MailCategory.PUBLIC)) {
-                            openPublicMailGui(player);
-                        } else {
-                            openPrivateMailGui(player);
-                        }
+                        deleteMail(mail, player).thenAccept(success -> {
+                            plugin.messages.sendMessage(player, plugin.messages.mailDeleted.replace("%title%", mail.getTitle()));
+                            if (mail.getCategory().equals(Mail.MailCategory.PUBLIC)) {
+                                openPublicMailGui(player);
+                            } else {
+                                openPrivateMailGui(player);
+                            }
+                        });
                     }
 
                     @Override
@@ -343,13 +345,15 @@ public class MailGUIManager {
                     @Override
                     public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                         event.setCancelled(true);
-                        readMail(mail, player, false);
+                        readMail(mail, player, false).thenAccept(success -> {
+                            plugin.messages.sendMessage(player, plugin.messages.mailUnRead.replace("%title%", mail.getTitle()));
 
-                        if (mail.getCategory().equals(Mail.MailCategory.PUBLIC)) {
-                            openPublicMailGui(player);
-                        } else {
-                            openPrivateMailGui(player);
-                        }
+                            if (mail.getCategory().equals(Mail.MailCategory.PUBLIC)) {
+                                openPublicMailGui(player);
+                            } else {
+                                openPrivateMailGui(player);
+                            }
+                        });
                     }
 
                     @Override

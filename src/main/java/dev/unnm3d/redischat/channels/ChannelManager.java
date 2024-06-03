@@ -3,7 +3,7 @@ package dev.unnm3d.redischat.channels;
 import com.github.Anon8281.universalScheduler.UniversalRunnable;
 import dev.unnm3d.redischat.Permissions;
 import dev.unnm3d.redischat.RedisChat;
-import dev.unnm3d.redischat.api.AsyncRedisChatMessageEvent;
+import dev.unnm3d.redischat.api.events.AsyncRedisChatMessageEvent;
 import dev.unnm3d.redischat.api.RedisChatAPI;
 import dev.unnm3d.redischat.api.VanishIntegration;
 import dev.unnm3d.redischat.chat.*;
@@ -226,6 +226,11 @@ public class ChannelManager extends RedisChatAPI {
         }
     }
 
+    /**
+     * Player chat event, called by the chat listener
+     * @param player Player
+     * @param finalMessage The message to be sent
+     */
     public void playerChat(Player player, @NotNull final String finalMessage) {
         final long init = System.currentTimeMillis();
         plugin.getDataManager().getActivePlayerChannel(player.getName(), registeredChannels)

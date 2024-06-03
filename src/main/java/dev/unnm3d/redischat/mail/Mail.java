@@ -18,10 +18,7 @@ import xyz.xenondevs.invui.item.impl.AbstractItem;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 
 @Getter
 public class Mail extends AbstractItem {
@@ -31,7 +28,7 @@ public class Mail extends AbstractItem {
     private final double id;
     private final MailGUIManager manager;
     @Setter
-    MailCategory category;
+    private MailCategory category;
     private final String sender;
     private final String receiver;
     private final String title;
@@ -148,7 +145,7 @@ public class Mail extends AbstractItem {
                                 TimeZone.getTimeZone(manager.getPlugin().config.mailTimestampZone).toZoneId())
                         .format(DateTimeFormatter.ofPattern(manager.getPlugin().config.mailTimestampFormat))
                 )
-                .replace("%mail_id%", String.format("%.3f", this.id))
+                .replace("%mail_id%", String.format(Locale.US, "%.2f", this.id))
                 .split("\r?\n"));
 
         final String[] contentLines = content
@@ -181,7 +178,7 @@ public class Mail extends AbstractItem {
             }
 
             bookPages.add(manager.getPlugin().getComponentProvider()
-                            .parse(player, componentText.toString(), false, false, true));
+                    .parse(player, componentText.toString(), false, false, true));
             componentText = new StringBuilder();
             lineCount = 0;
         }

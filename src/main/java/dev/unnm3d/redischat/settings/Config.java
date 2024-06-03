@@ -16,10 +16,10 @@ import java.util.TreeMap;
 @Configuration
 public final class Config implements ConfigValidator {
 
-    @Comment({"RedisChat storage type, can be REDIS , MySQL+PM or H2+PM (PM means PluginMessages)",
+    @Comment({"RedisChat storage type, can be REDIS , MySQL+PM or SQLITE+PM (PM means PluginMessages)",
             "If you use Mysql you need a proxy. The plugin will send the data to the proxy via pluginmessages",
             "If you use REDIS you don't need any proxy, THIS IS THE RECOMMENDED AND MOST EFFICIENT OPTION"})
-    public String dataMedium = DataType.H2.keyName;
+    public String dataMedium = DataType.SQLITE.keyName;
     @Comment("Leave password or user empty if you don't have a password or user")
     public RedisSettings redis = new RedisSettings("localhost",
             6379,
@@ -229,6 +229,10 @@ public final class Config implements ConfigValidator {
     public boolean sendWarnWhenIgnoring = true;
     @Comment("Enable or disable the staff chat")
     public boolean enableStaffChat = true;
+    @Comment("Enable or disable the chat color GUI")
+    public boolean enableChatColorGUI = false;
+    @Comment("Enable to complete chat suggestions with player names from RedisChat's shared player list")
+    public boolean completeChatSuggestions = true;
     @Comment("Messages with this prefix will be sent to staff chat")
     public String staffChatPrefix = "!";
     @Comment("The format of the staff chat messages")
@@ -244,8 +248,6 @@ public final class Config implements ConfigValidator {
     public String mailTimestampFormat = "dd/MM/yyyy HH:mm";
     @Comment("The timezone of the timestamp in mails (by default is Central European Time)")
     public String mailTimestampZone = "UTC+1";
-    @Comment("The timeout of the mail editor in seconds")
-    public int mailEditorTimeout = 300;
     @Comment("Those commands will be disabled")
     public List<String> disabledCommands = List.of();
     @Comment("The [inv], [item] and [ec] placeholders will be considered as minimessage tags")
@@ -330,6 +332,10 @@ public final class Config implements ConfigValidator {
             commandAliases.put("rbroadcastraw", List.of("broadcastraw", "bcraw"));
             Bukkit.getLogger().warning("You didn't set any aliases for rbroadcastraw, using default aliases");
         }
+        if(dataMedium.equalsIgnoreCase("H2+PM")){
+            dataMedium = DataType.SQLITE.keyName;
+            Bukkit.getLogger().warning("H2+PM has been deprecated, using SQLITE+PM as default");
+        }
         for (Announcement announcement : announcer) {
             if (announcement.channelName == null || announcement.channelName.isEmpty()) {
                 Bukkit.getLogger().warning("Announce " + announcement.announcementName() + " doesn't have a channel name, using \"public\" as default");
@@ -387,13 +393,14 @@ public final class Config implements ConfigValidator {
     }
 
     public DataType getDataType() {
-        return DataType.fromString(dataMedium.toUpperCase());
+        final DataType type = DataType.fromString(dataMedium.toUpperCase());
+        return type == null ? DataType.SQLITE : type;
     }
 
     public enum DataType {
         MYSQL("MYSQL+PM"),
         REDIS("REDIS"),
-        H2("H2+PM"),
+        SQLITE("SQLITE+PM"),
         ;
         private final String keyName;
 

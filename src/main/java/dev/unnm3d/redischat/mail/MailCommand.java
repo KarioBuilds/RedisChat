@@ -4,6 +4,7 @@ import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.SuggestionInfo;
 import dev.jorel.commandapi.arguments.*;
 import dev.unnm3d.redischat.Permissions;
+import dev.unnm3d.redischat.RedisChat;
 import lombok.AllArgsConstructor;
 import org.bukkit.command.CommandSender;
 
@@ -52,8 +53,8 @@ public class MailCommand {
                                     sender, recipient,
                                     (String) args.get(1), session
                             )).exceptionally(throwable -> {
-                        throwable.printStackTrace();
-                        return null;
+                                throwable.printStackTrace();
+                                return null;
                             });
                 });
     }
@@ -70,11 +71,7 @@ public class MailCommand {
                     mailGUIManager.getPrivateMails(sender.getName()).thenAccept(mails -> mails.stream()
                             .filter(m -> m.getId() == id)
                             .findFirst()
-                            .ifPresentOrElse(mail -> {
-                                        System.out.println("Deleting mail " + mail.getId() + " from " + mail.getSender() + " to " + mail.getReceiver());
-                                        mailGUIManager.deleteMail(mail, sender);
-
-                                    },
+                            .ifPresentOrElse(mail -> mailGUIManager.deleteMail(mail, sender),
                                     () -> mailGUIManager.getPlugin().getComponentProvider().sendMessage(sender, mailGUIManager.getPlugin().messages.mailNotFound)
                             ));
                 });
@@ -98,7 +95,14 @@ public class MailCommand {
                             .filter(m -> m.getId() == id)
                             .findFirst()
                             .ifPresentOrElse(
-                                    mail -> mailGUIManager.readMail(mail, sender, false),
+                                    mail -> mailGUIManager.readMail(mail, sender, false).thenApply(aBoolean -> {
+                                        if (aBoolean) {
+                                            RedisChat.getInstance().messages.sendMessage(sender, RedisChat.getInstance().messages.mailUnRead.replace("%title%", mail.getTitle()));
+                                        } else {
+                                            RedisChat.getInstance().messages.sendMessage(sender, RedisChat.getInstance().messages.mailError);
+                                        }
+                                        return aBoolean;
+                                    }),
                                     () -> mailGUIManager.getPlugin().getComponentProvider().sendMessage(sender, mailGUIManager.getPlugin().messages.mailNotFound)
                             ));
                 });
