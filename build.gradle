@@ -6,7 +6,7 @@ plugins {
 
 
 group = 'dev.unnm3d'
-version = '5.3'
+version = '5.4.0'
 
 
 repositories {
@@ -23,8 +23,7 @@ dependencies {
     compileOnly 'net.kyori:adventure-text-minimessage:4.17.0'
     compileOnly 'net.kyori:adventure-text-serializer-plain:4.17.0'
     compileOnly 'net.kyori:adventure-text-serializer-legacy:4.17.0'
-    compileOnly 'net.kyori:adventure-platform-bukkit:4.3.3'
-    compileOnly 'com.alibaba:fastjson:2.0.52'
+    compileOnly 'net.kyori:adventure-platform-bukkit:4.3.4'
 
     implementation 'com.github.Exlll.ConfigLib:configlib-paper:v4.5.0'
     implementation 'xyz.xenondevs.invui:invui-core:1.35'
@@ -43,7 +42,7 @@ dependencies {
 
     compileOnly 'org.spigotmc:spigot-api:1.19.4-R0.1-SNAPSHOT'
     compileOnly 'me.clip:placeholderapi:2.11.3'
-    compileOnly 'io.lettuce:lettuce-core:6.2.7.RELEASE'
+    compileOnly 'io.lettuce:lettuce-core:6.4.0.RELEASE'
     compileOnly 'org.jetbrains:annotations:24.1.0'
     compileOnly 'com.zaxxer:HikariCP:5.1.0'
     compileOnly 'net.luckperms:api:5.4'

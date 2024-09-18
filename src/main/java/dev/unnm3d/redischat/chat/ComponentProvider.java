@@ -42,6 +42,7 @@ public class ComponentProvider {
     private final List<TagResolverIntegration> tagResolverIntegrationList;
     @Getter
     private final BukkitAudiences bukkitAudiences;
+    @Getter
     private final ItemNameProvider itemNameProvider;
 
 
@@ -52,7 +53,7 @@ public class ComponentProvider {
         this.standardTagResolver = StandardTags.defaults();
         this.tagResolverIntegrationList = new ArrayList<>();
         this.bukkitAudiences = BukkitAudiences.create(plugin);
-        this.itemNameProvider = new ItemNameProvider();
+        this.itemNameProvider = new ItemNameProvider(plugin.config.useItemName);
     }
 
     /**
@@ -270,7 +271,8 @@ public class ComponentProvider {
             } else if (itemMeta != null && itemNameProvider.hasItemName(itemMeta)) {
                 toParseItemComponent = toParseItemComponent.replaceText(rTextBuilder ->
                         rTextBuilder.matchLiteral("%item_name%")
-                                .replacement(LegacyComponentSerializer.legacySection().deserialize(itemNameProvider.getItemName(itemMeta))));
+                                .replacement(LegacyComponentSerializer.legacySection()
+                                        .deserialize(replaceAmpersandCodesWithSection(itemNameProvider.getItemName(itemMeta)))));
             } else {
                 toParseItemComponent = toParseItemComponent.replaceText(rTextBuilder ->
                         rTextBuilder.matchLiteral("%item_name%")

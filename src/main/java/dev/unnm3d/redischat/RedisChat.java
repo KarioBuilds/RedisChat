@@ -13,6 +13,9 @@ import dev.unnm3d.redischat.api.DataManager;
 import dev.unnm3d.redischat.channels.ChannelCommand;
 import dev.unnm3d.redischat.channels.ChannelManager;
 import dev.unnm3d.redischat.chat.*;
+import dev.unnm3d.redischat.chat.listeners.ChatListenerWithPriority;
+import dev.unnm3d.redischat.chat.listeners.JoinQuitManager;
+import dev.unnm3d.redischat.chat.listeners.UtilsListener;
 import dev.unnm3d.redischat.commands.*;
 import dev.unnm3d.redischat.datamanagers.RedisDataManager;
 import dev.unnm3d.redischat.datamanagers.sqlmanagers.MySQLDataManager;
@@ -166,6 +169,8 @@ public final class RedisChat extends JavaPlugin {
             }
         }
 
+        //Update active channel on join and spy listener
+        getServer().getPluginManager().registerEvents(new UtilsListener(this), this);
 
         //Mail section
         if (config.enableMails) {
@@ -326,17 +331,6 @@ public final class RedisChat extends JavaPlugin {
                 guiSettings,
                 ConfigLib.BUKKIT_DEFAULT_PROPERTIES.toBuilder()
                         .header("RedisChat guis")
-                        .footer("Authors: Unnm3d")
-                        .build());
-    }
-
-    public void saveFilters() {
-        YamlConfigurations.save(
-                new File(this.getDataFolder(), "filters.yml").toPath(),
-                FiltersConfig.class,
-                filterSettings,
-                YamlConfigurationProperties.newBuilder()
-                        .header("RedisChat filters")
                         .footer("Authors: Unnm3d")
                         .build());
     }

@@ -2,8 +2,8 @@ package dev.unnm3d.redischat.channels.gui;
 
 import dev.unnm3d.redischat.Permissions;
 import dev.unnm3d.redischat.RedisChat;
-import dev.unnm3d.redischat.chat.KnownChatEntities;
-import dev.unnm3d.redischat.chat.objects.Channel;
+import dev.unnm3d.redischat.api.objects.KnownChatEntities;
+import dev.unnm3d.redischat.api.objects.Channel;
 import lombok.Getter;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -18,9 +18,9 @@ import xyz.xenondevs.invui.item.impl.AbstractItem;
 
 @Getter
 public class PlayerChannel extends AbstractItem {
-    private final Channel channel;
-    private final Player player;
-    private Status status;
+    protected final Channel channel;
+    protected final Player player;
+    protected Status status;
 
 
     public PlayerChannel(Channel channel, Player player, boolean isActive) {
@@ -67,7 +67,8 @@ public class PlayerChannel extends AbstractItem {
 
         final ItemMeta im = item.getItemMeta();
         if (im != null)
-            im.setDisplayName("§r" + channel.getDisplayName());
+            im.setDisplayName("§r" + RedisChat.getInstance().getComponentProvider()
+                    .replaceAmpersandCodesWithSection(channel.getDisplayName()));
         item.setItemMeta(im);
         return new ItemBuilder(item);
     }

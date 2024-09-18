@@ -5,7 +5,8 @@ import dev.jorel.commandapi.arguments.*;
 import dev.unnm3d.redischat.Permissions;
 import dev.unnm3d.redischat.RedisChat;
 import dev.unnm3d.redischat.channels.gui.PlayerChannel;
-import dev.unnm3d.redischat.chat.objects.Channel;
+import dev.unnm3d.redischat.api.objects.KnownChatEntities;
+import dev.unnm3d.redischat.api.objects.Channel;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
@@ -46,16 +47,18 @@ public class ChannelCommand {
                 .withArguments(new IntegerArgument("rate-limit"))
                 .withArguments(new IntegerArgument("rate-limit-period"))
                 .withArguments(new BooleanArgument("filtered"))
-                .withOptionalArguments(new BooleanArgument("allowed-by-default"))
                 .withOptionalArguments(new IntegerArgument("proximity-distance")
                         .replaceSuggestions(ArgumentSuggestions.strings("-1", "100")))
                 .withOptionalArguments(new TextArgument("discord-webhook")
                         .replaceSuggestions(ArgumentSuggestions.strings("\"https://discord.com/api/webhooks/...\"")))
+                .withOptionalArguments(new BooleanArgument("shown-by-default"))
+                .withOptionalArguments(new BooleanArgument("permission-required"))
                 .executesPlayer((sender, args) -> {
-                    Optional<Object> shownByDefault = args.getOptional("shown-by-default");
-                    Optional<Object> needsPermission = args.getOptional("needs-permission");
-                    Optional<Object> discordWebhook = args.getOptional("discord-webhook");
                     Optional<Object> proximityDistance = args.getOptional("proximity-distance");
+                    Optional<Object> discordWebhook = args.getOptional("discord-webhook");
+                    Optional<Object> shownByDefault = args.getOptional("shown-by-default");
+                    Optional<Object> needsPermission = args.getOptional("permission-required");
+
                     if (args.count() < 4) {
                         plugin.messages.sendMessage(sender, plugin.messages.missing_arguments);
                         return;
@@ -103,8 +106,17 @@ public class ChannelCommand {
                         plugin.messages.sendMessage(sender, plugin.messages.missing_arguments);
                         return;
                     }
+                    final String channelName = (String) args.get(0);
+                    if (channelName == null) {
+                        plugin.messages.sendMessage(sender, plugin.messages.missing_arguments);
+                        return;
+                    }
+                    if (channelName.equals(KnownChatEntities.GENERAL_CHANNEL.toString())) {
+                        plugin.messages.sendMessage(sender, plugin.messages.configuration_parameter.replace("%parameter%", "discord-webhook"));
+                        return;
+                    }
 
-                    plugin.getChannelManager().getChannel((String) args.get(0)).ifPresentOrElse(channel -> {
+                    plugin.getChannelManager().getRegisteredChannel((String) args.get(0)).ifPresentOrElse(channel -> {
                         channel.setDiscordWebhook((String) args.get(1));
                         plugin.getChannelManager().registerChannel(channel);
                         plugin.messages.sendMessage(sender, plugin.messages.channelCreated);
@@ -180,28 +192,28 @@ public class ChannelCommand {
                 .withPermission(Permissions.CHANNEL_LIST.getPermission())
                 .executesPlayer((sender, args) -> {
                     plugin.getComponentProvider().sendMessage(sender, plugin.messages.channelListHeader);
-                    plugin.getDataManager().getActivePlayerChannel(sender.getName(), plugin.getChannelManager().getRegisteredChannels())
-                            .thenAccept(activeChannelName -> {
-                                final List<PlayerChannel> availableChannels = plugin.getChannelManager().getRegisteredChannels().values().stream()
-                                        .filter(channel -> channel.isShownByDefault() || sender.hasPermission(Permissions.CHANNEL_SHOW_PREFIX.getPermission() + channel.getName()))
-                                        .map(channel -> new PlayerChannel(channel, sender, channel.getName().equals(activeChannelName)))
-                                        .filter(playerChannel -> !playerChannel.isHidden())
-                                        .toList();
+                    final String activeChannelName = plugin.getChannelManager().getActiveChannel(sender.getName());
 
-                                for (PlayerChannel channel : availableChannels) {
-                                    final String channelMsg =
-                                            channel.isListening() ?
-                                                    plugin.messages.channelListTransmitting :
-                                                    channel.isMuted() ?
-                                                            plugin.messages.channelListMuted :
-                                                            plugin.messages.channelListReceiving;
-                                    plugin.getComponentProvider().sendMessage(sender,
-                                            channelMsg.replace("%channel%", channel.getChannel().getName())
-                                    );
-                                }
-                            });
+                    final List<PlayerChannel> availableChannels = plugin.getChannelManager().getRegisteredChannels().values().stream()
+                            .filter(channel -> channel.isShownByDefault() || sender.hasPermission(Permissions.CHANNEL_SHOW_PREFIX.getPermission() + channel.getName()))
+                            .map(channel -> new PlayerChannel(channel, sender, channel.getName().equals(activeChannelName)))
+                            .filter(playerChannel -> !playerChannel.isHidden())
+                            .toList();
 
+                    for (PlayerChannel channel : availableChannels) {
+                        final String channelMsg =
+                                channel.isListening() ?
+                                        plugin.messages.channelListTransmitting :
+                                        channel.isMuted() ?
+                                                plugin.messages.channelListMuted :
+                                                plugin.messages.channelListReceiving;
+                        plugin.getComponentProvider().sendMessage(sender,
+                                channelMsg.replace("%channel%", channel.getChannel().getName())
+                        );
+                    }
                 });
+
+
     }
 
     public CommandAPICommand getDeleteSubCommand() {

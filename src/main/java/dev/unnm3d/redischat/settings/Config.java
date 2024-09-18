@@ -190,7 +190,7 @@ public final class Config implements ConfigValidator {
             "If you want to disable an announce, just remove it from the list, remember that in yaml [] is an empty list",
             "If you specify a permission, only players with that permission will see the announce. Keep it empty to make it public",
     })
-    public List<Announcement> announcer = List.of(new Announcement("default", "<yellow>RedisChat</yellow> <gray>»</gray><red>To EssentialsX and CMI users: <aqua><br>disable <gold>/msg, /reply, /broadcast, /ignore, etc</gold> commands inside CMI and EssentialsX<br>Or RedisChat commands <red>will <u>not</u> work</red>!!!</aqua>", "public", 5, 300));
+    public List<Announcement> announcer = List.of(new Announcement("default", "<yellow>RedisChat</yellow> <gray>»</gray> <red>To EssentialsX and CMI users: <aqua><br>disable <gold>/msg, /reply, /broadcast, /ignore, etc</gold> commands inside CMI and EssentialsX<br>Or RedisChat commands <red>will <u>not</u> work</red>!!!</aqua>", "public", 5, 300));
 
     @Comment({"Title of the ShowInventory GUI"})
     public String inv_title = "Inventory of %player%";
@@ -209,10 +209,14 @@ public final class Config implements ConfigValidator {
     public String clear_chat_message = "<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared<br><br><br><br><br><br><br><br><br><br>Chat cleared";
     @Comment("How many messages to keep in the chat history for each player and for each audience")
     public int last_message_count = 5;
-    @Comment("Here you can set the number of messages that a player can send without being rate limited")
+    @Comment("Here you can set the number of messages that a player can send without being rate limited inside public chat")
     public int rate_limit = 3;
-    @Comment("Here you can set the time in seconds that a player can send the number of messages specified in rate_limit")
+    @Comment("Here you can set the time in seconds that a player can send the number of messages specified in rate_limit inside public chat")
     public int rate_limit_time_seconds = 5;
+    @Comment("The discord webhook of the public chat")
+    public String publicDiscordWebhook = "";
+    @Comment("Whether to filter the public chat")
+    public boolean isPublicFiltered = true;
     @Comment("Rejoin delay in milliseconds")
     public int rejoinSendDelay = 500;
     @Comment("Quit delay in milliseconds")
@@ -235,9 +239,10 @@ public final class Config implements ConfigValidator {
     public String staffChatDiscordWebhook = "";
     public String inventoryFormat = "<click:run_command:%command%><gold>[%player%'s Inventory]</gold></click>";
     public String itemFormat = "<click:run_command:%command%>[%item_name%]</click>";
+    @Comment({"Only 1.20.6+","Whether to use the item name or the display name when parsing the <item> tag"})
+    public boolean useItemName = true;
     public String enderChestFormat = "<click:run_command:%command%><light_purple>[%player%'s EnderChest]</light_purple></click>";
-    @Comment("The discord webhook of the public chat")
-    public String publicDiscordWebhook = "";
+
     @Comment("The format of the timestamp in mails (by default is like 31/07/2023 15:24)")
     public String mailTimestampFormat = "dd/MM/yyyy HH:mm";
     @Comment("The timezone of the timestamp in mails (by default is Central European Time)")

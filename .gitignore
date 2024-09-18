@@ -14,3 +14,4 @@ hs_err_pid*
 
 # Common working directory
 run/
+src/main/java/dev/unnm3d/redischat/utils/Metrics.java

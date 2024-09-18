@@ -5,7 +5,7 @@ author: Unnm3d
 api-version: 1.19
 folia-supported: true
 libraries:
-  - io.lettuce:lettuce-core:6.2.7.RELEASE
+  - io.lettuce:lettuce-core:6.4.0.RELEASE
   - org.yaml:snakeyaml:1.27
   - org.snakeyaml:snakeyaml-engine:2.3
   - org.jetbrains:annotations:24.1.0
@@ -16,7 +16,7 @@ libraries:
   - net.kyori:adventure-text-minimessage:4.17.0
   - net.kyori:adventure-text-serializer-plain:4.17.0
   - net.kyori:adventure-text-serializer-legacy:4.17.0
-  - net.kyori:adventure-platform-bukkit:4.3.3
+  - net.kyori:adventure-platform-bukkit:4.3.4
 depend:
   - PlaceholderAPI
 softdepend:
@@ -104,6 +104,9 @@ permissions:
   redischat.spycommand:
     description: Allows to use the /spychat command
     default: op
+  redischat.spycommand.other:
+    description: Allows to use the /spychat command others
+    default: false
   redischat.staffchat:
     description: Allows to use the /staffchat command
     default: op
