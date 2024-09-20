@@ -14,6 +14,7 @@ repositories {
     maven { url 'https://repo.spicord.org/' }
     maven { url 'https://jitpack.io' }
     maven { url 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
     maven { url 'https://repo.xenondevs.xyz/releases' }
     maven { url 'https://repo.maven.apache.org/maven2/' }
