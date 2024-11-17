@@ -15,6 +15,7 @@ public final class Messages {
 
     public String player_not_online = "<yellow>RedisChat</yellow> <gray>»</gray> <red>The player %player% is not online</red>";
     public String cannot_message_yourself = "<yellow>RedisChat</yellow> <gray>»</gray> <red>You cannot message yourself</red>";
+    public String cannot_ignore_yourself = "<yellow>RedisChat</yellow> <gray>»</gray> <red>You cannot ignore yourself</red>";
     public String missing_arguments = "<yellow>RedisChat</yellow> <gray>»</gray> <red>Missing arguments</red>";
     public String empty_message = "<yellow>RedisChat</yellow> <gray>»</gray> <red>Message cannot be empty</red>";
     public String action_completed_successfully = "<yellow>RedisChat</yellow> <gray>»</gray> <green>Action completed successfully</green>";
@@ -97,7 +98,7 @@ public final class Messages {
     public String muted_player = "<yellow>RedisChat</yellow> <gray>»</gray> <aqua>You muted %player% on channel %channel%!</aqua>";
     public String unmuted_player = "<yellow>RedisChat</yellow> <gray>»</gray> <aqua>You unmuted %player% on channel %channel%!</aqua>";
     public String muted_on_channel = "<yellow>RedisChat</yellow> <gray>»</gray> <aqua>You've been muted in this channel (%channel%)!</aqua>";
-    public String ignored_player_receiver = "<click:run_command:'/ignore list'><hover:show_text:'Click to see ignored players'><color:#545454>Ignored message</color></hover></click>";
+    public String ignored_player_receiver = "<click:run_command:'/ignore list'><hover:show_text:'Click to see ignored players'><color:#545454>Ignored message from %player%</color></hover></click>";
     public String ignored_player_sender = "<click:run_command:'/ignore list'><color:#545454>You are ignoring this player, Click to see ignored players</color></click>";
     public String invalid_color = "<yellow>RedisChat</yellow> <gray>»</gray> <red>Invalid color!</red>";
     public String color_set= "<yellow>RedisChat</yellow> <gray>»</gray> <green>You successfully set your chat color!</green>";
