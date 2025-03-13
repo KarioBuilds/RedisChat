@@ -215,7 +215,7 @@ public class ComponentProvider {
                 cmdSender.hasPermission(Permissions.USE_FORMATTING.getPermission()),
                 true, true, getRedisChatTagResolver(cmdSender));
 
-        if (!cmdSender.hasPermission(Permissions.USE_CUSTOM_PLACEHOLDERS.getPermission())) return component;
+        if (!cmdSender.hasPermission(Permissions.USE_EMOJI_PLACEHOLDERS.getPermission())) return component;
 
         for (Map.Entry<String, String> replacementEntry : plugin.config.placeholders.entrySet()) {
             component = component.replaceText(rBuilder ->
@@ -300,7 +300,7 @@ public class ComponentProvider {
         String toParse = text;
         for (String playerName : plugin.getPlayerListManager().getPlayerList(mentioner)) {
             playerName = playerName.replace("*", "\\*");
-            Pattern p = Pattern.compile("(^" + playerName + "|" + playerName + "$|\\s" + playerName + "\\s)");
+            Pattern p = Pattern.compile("((?<=^|\\s)"+playerName+"(?=\\s|$))");
             Matcher m = p.matcher(text);
             if (m.find()) {
                 String replacing = m.group();
