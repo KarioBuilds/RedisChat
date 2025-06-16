@@ -10,8 +10,8 @@ import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.unnm3d.redischat.api.DataManager;
-import dev.unnm3d.redischat.channels.ChannelCommand;
 import dev.unnm3d.redischat.channels.ChannelManager;
+import dev.unnm3d.redischat.channels.ChannelUniformCommand;
 import dev.unnm3d.redischat.chat.ComponentProvider;
 import dev.unnm3d.redischat.chat.PlaceholderManager;
 import dev.unnm3d.redischat.chat.RedisChatPAPI;
@@ -28,8 +28,8 @@ import dev.unnm3d.redischat.discord.SpicordHook;
 import dev.unnm3d.redischat.integrations.OraxenTagResolver;
 import dev.unnm3d.redischat.integrations.PremiumVanishIntegration;
 import dev.unnm3d.redischat.integrations.SuperVanishIntegration;
-import dev.unnm3d.redischat.mail.MailCommand;
 import dev.unnm3d.redischat.mail.MailGUIManager;
+import dev.unnm3d.redischat.mail.MailUniformCommand;
 import dev.unnm3d.redischat.moderation.MuteCommand;
 import dev.unnm3d.redischat.moderation.SpyChatCommand;
 import dev.unnm3d.redischat.moderation.SpyManager;
@@ -45,6 +45,7 @@ import dev.unnm3d.redischat.task.AnnouncerManager;
 import dev.unnm3d.redischat.utils.AdventureWebuiEditorAPI;
 import dev.unnm3d.redischat.utils.Metrics;
 import lombok.Getter;
+import net.william278.uniform.paper.PaperUniform;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -103,7 +104,6 @@ public final class RedisChat extends JavaPlugin {
     @Override
     public void onLoad() {
         CommandAPI.onLoad(new CommandAPIBukkitConfig(this)
-                .usePluginNamespace()
                 .silentLogs(true)
                 .skipReloadDatapacks(true)
                 .shouldHookPaperReload(true)
@@ -157,11 +157,11 @@ public final class RedisChat extends JavaPlugin {
         getServer().getPluginManager().registerEvents(listenerWithPriority.getListener(), this);
 
         if (config.enableStaffChat)
-            loadCommandAPICommand(new StaffChatCommand(this).getCommand());
+            loadUniformCommand(new StaffChatCommand());
 
 
         this.channelManager = new ChannelManager(this);
-        loadCommandAPICommand(new ChannelCommand(this).getCommand());
+        loadUniformCommand(new ChannelUniformCommand(this));
         final TalkOnCommand talkOnCommand = new TalkOnCommand(this);
         loadCommand("talkon", talkOnCommand, talkOnCommand);
 
@@ -180,7 +180,7 @@ public final class RedisChat extends JavaPlugin {
         //Mail section
         if (config.enableMails) {
             this.mailGUIManager = new MailGUIManager(this);
-            loadCommandAPICommand(new MailCommand(this.mailGUIManager).getCommand());
+            loadUniformCommand(new MailUniformCommand(this));
         }
 
 
@@ -194,8 +194,10 @@ public final class RedisChat extends JavaPlugin {
 
         //Commands section
         loadCommandAPICommand(new MainCommand(this, this.webEditorAPI).getCommand());
-        loadCommandAPICommand(new MsgCommand(this).getCommand());
-        loadCommandAPICommand(new ReplyCommand(this).getCommand());
+        //loadCommandAPICommand(new MsgCommand(this).getCommand());
+        loadUniformCommand(new UniformMsgCommand());
+        loadUniformCommand(new UniformReplyCommand());
+        //loadCommandAPICommand(new ReplyCommand(this).getCommand());
         loadCommandAPICommand(new ChatAsCommand(this).getCommand());
         final BroadcastCommand broadcastCommand = new BroadcastCommand(this);
         loadCommandAPICommand(broadcastCommand.getBroadcastCommand());
@@ -350,6 +352,7 @@ public final class RedisChat extends JavaPlugin {
         if (this.dataManager != null)
             this.dataManager.clearInvShareCache();
 
+        PaperUniform.getInstance(this).shutdown();
         registeredCommands.forEach(command -> CommandAPI.unregister(command.getName(), true));
         CommandAPI.onDisable();
 
@@ -390,6 +393,10 @@ public final class RedisChat extends JavaPlugin {
         commandAPICommand.register();
         registeredCommands.add(commandAPICommand);
         getLogger().info("Command " + commandAPICommand.getName() + " registered on CommandAPI!");
+    }
+
+    public void loadUniformCommand(RedisChatCommand command) {
+        PaperUniform.getInstance(this, false).register(command.getCommand());
     }
 
 }
